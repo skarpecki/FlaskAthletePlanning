@@ -2,3 +2,6 @@
 /db/model.mwb.bak
 /app/athlete/
 /venv/
+/.idea/
+/__pycache__/
+/test.py
