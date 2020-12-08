@@ -1,7 +1,8 @@
 from app import db
 import sys
-from werkzeug.security import generate_password_hash
+from passlib.hash import bcrypt
 from .model import User
+
 
 
 class UserService():
@@ -11,6 +12,7 @@ class UserService():
 
     @staticmethod
     def get_by_args(**kwargs) -> User:
+        print(kwargs)
         user = User.query.filter_by(**kwargs).all()
         return user
 
@@ -18,12 +20,12 @@ class UserService():
     @staticmethod
     def create(attrs) -> User:
         user = User(
-            mail_address=attrs["mail_address"],
+            mail_address = attrs["mail_address"],
             first_name = attrs["first_name"],
             last_name = attrs["last_name"],
             birthdate = attrs["birthdate"],
             role = attrs["role"],
-            password = generate_password_hash(attrs["password"], method='sha256')
+            password = bcrypt.hash(attrs["password"])
         )
 
         db.session.add(user)    
@@ -31,4 +33,9 @@ class UserService():
 
         return user
 
+class LoginService():
+    @staticmethod
+    def authenticate(mail_address, password) -> User:
+        user = User.query.filter(User.mail_address == mail_address)
+        return user
     

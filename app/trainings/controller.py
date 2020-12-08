@@ -23,5 +23,6 @@ class Exercises(Resource):
                 Exercises = ExercisesService.get_by_args(**request.args)
             except ValidationError as err:
                 return err.messages
-
+            except KeyError as err:
+                return {"error": "wrong data provided"}
         return ExerciseSchema().dump(Exercises, many=True)

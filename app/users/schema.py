@@ -10,3 +10,9 @@ class UserSchema(Schema):
     birthdate = fields.Date(attribute='birthdate')
     role = fields.String(attribute='role')
     password = fields.String(attribute='password')
+
+
+class LoginSchema(Schema):
+    """Login Schema"""
+    mailAddress = fields.String(attribute='mail_address')
+    password = fields.String(attribute='password')
