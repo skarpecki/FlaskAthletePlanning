@@ -4,7 +4,6 @@ from enum import Enum
 class Role(Enum):
     athlete = 1
     coach = 2
-
     #without defining a str it is impossible for marshmallow to translate enum to json
     def __str__(self):
         return self.name
@@ -24,3 +23,5 @@ class User(db.Model):
     password = db.Column(db.String(100), nullable=False)
 
 
+class vCoachAthlete(db.Model):
+    coach_id = db.Column(db.Integer)

@@ -1,6 +1,7 @@
 from flask import request
 from flask_restful import Resource
 from marshmallow import ValidationError
+from flask_jwt_extended import jwt_required, get_jwt_claims
 
 from .service import TrainingService, ExercisesService
 from .schema import TrainingSchema, ExerciseSchema
@@ -8,21 +9,38 @@ from .model import Training
 
 
 class Trainings(Resource):
-    def get(self) -> dict:
-        if not request.args:
-            Trainings = TrainingService.get_all();
-            return TrainingSchema().dump(Trainings, many=True)
+    def get(self, id):
+        print(id)
+        Training = TrainingService.get_by_id(id)
+        return TrainingSchema().dump(Training)
 
 
-class Exercises(Resource):
-    def get(self) -> dict:
+#TODO: catch jwt exceptions
+class TrainingsSearch(Resource):
+    @jwt_required
+    def get(self):
+        claims = get_jwt_claims()
         if not request.args:
-            Exercises = ExercisesService.get_all()
+            if claims['role'] == 'athlete':
+                trainings = TrainingService.get_all_athlete(claims['userID'])
+            elif claims['role'] == 'coach':
+                trainings = TrainingService.get_all_coach(claims['userID'])
+            else:
+                return {"message": "no data found"}
         else:
             try:
-                Exercises = ExercisesService.get_by_args(**request.args)
+                if claims['role'] == 'athlete':
+                    trainings = TrainingService.get_by_args_athlete(claims['userID'], **TrainingSchema().load(dict(request.args.items())))
+                elif claims['role'] == 'coach':
+                    trainings = TrainingService.get_by_args_coach(claims['userID'], **TrainingSchema().load(dict(request.args.items())))
             except ValidationError as err:
                 return err.messages
             except KeyError as err:
                 return {"error": "wrong data provided"}
-        return ExerciseSchema().dump(Exercises, many=True)
+        return TrainingSchema().dump(trainings, many=True)
+
+
+class Exercises(Resource):
+    def get(self, id):
+        result = ExercisesService.get_by_id(id)
+        return ExerciseSchema().dump(result, many=True)

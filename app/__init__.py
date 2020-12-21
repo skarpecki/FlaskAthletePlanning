@@ -24,9 +24,10 @@ def create_app(test_config=None) -> 'Flask app':
     api.add_resource(users_controller.Login, '/users/login')
 
     from app.trainings import controller as trainings_controller
-    api.add_resource(trainings_controller.Trainings, '/trainings')
-    api.add_resource(trainings_controller.Exercises, '/exercises')
-
+    api.add_resource(trainings_controller.TrainingsSearch, '/trainings')
+    api.add_resource(trainings_controller.Trainings, '/trainings/<int:id>')
+    #api.add_resource(trainings_controller.Exercises, '/exercises')
+    api.add_resource(trainings_controller.Exercises, '/trainings/<int:id>/exercises')
 
 
     
