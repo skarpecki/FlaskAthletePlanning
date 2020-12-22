@@ -24,19 +24,18 @@ class Users(Resource):
             # if no args were passed return all users from database
             if not request.args:
                 user = UserService.get_all(claims["userID"])
+            else:
+                try:
+                    # translating fields from userSchema to User fields (e.g. firstName to first_name) as the former is more popular in the internet
+                    result = UserSchema().load(dict(request.args.items()))
+                    user = UserService.get_by_args(**result)
+                except ValidationError as err:
+                    return err.messages
+                except KeyError as err:
+                    return {"error": "wrong data provided"}
         except ExpiredSignature as err:
             print("exception")
             return {"message": err}
-        else:
-            try:
-                # translating fields from userSchema to User fields (e.g. firstName to first_name) as the former is more popular in the internet
-                result = UserSchema().load(dict(request.args.items()))
-                user = UserService.get_by_args(**result)
-                print(user)
-            except ValidationError as err:
-                return err.messages
-            except KeyError as err:
-                return {"error": "wrong data provided"}
 
         # user = UserService.get_by_args(**dict(request.args.items()))
         return AthleteCoachSchema().dump(user, many=True)
@@ -45,9 +44,9 @@ class Users(Resource):
     #TODO: ask whether user should be able to post a data like fields names, e.g. first_name instead of fisrtName
     def post(self) -> User:
         try:
-            result = UserSchema().load(request.get_json(force=True))
-            UserService.create(result)
-            return UserSchema().dump(result)
+            attrs = UserSchema().load(request.get_json(force=True))
+            id = UserService.create(attrs)
+            return {"id": id}
         except ValidationError as err:
             return err.messages
 

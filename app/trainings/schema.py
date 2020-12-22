@@ -2,7 +2,7 @@ from marshmallow import fields, Schema
 
 class TrainingSchema(Schema):
     trainingID = fields.Integer(attribute='id')
-    date = fields.DateTime(attribute='date')
+    date = fields.Date(attribute='date')
     athleteFeedback = fields.String(attribute='athlete_feedback')
     coachFeedback = fields.String(attribute='coach_feedback')
     athleteID = fields.Integer(attribute='athletes_id')

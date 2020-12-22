@@ -22,6 +22,3 @@ class User(db.Model):
     role = db.Column(db.Enum(Role), nullable=False)
     password = db.Column(db.String(100), nullable=False)
 
-
-class vCoachAthlete(db.Model):
-    coach_id = db.Column(db.Integer)

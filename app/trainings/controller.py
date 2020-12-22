@@ -2,6 +2,7 @@ from flask import request
 from flask_restful import Resource
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt_claims
+from datetime import date
 
 from .service import TrainingService, ExercisesService
 from .schema import TrainingSchema, ExerciseSchema
@@ -9,9 +10,8 @@ from .model import Training
 
 
 class Trainings(Resource):
-    def get(self, id):
-        print(id)
-        Training = TrainingService.get_by_id(id)
+    def get(self, training_id):
+        Training = TrainingService.get_by_id(training_id)
         return TrainingSchema().dump(Training)
 
 
@@ -21,26 +21,43 @@ class TrainingsSearch(Resource):
     def get(self):
         claims = get_jwt_claims()
         if not request.args:
-            if claims['role'] == 'athlete':
-                trainings = TrainingService.get_all_athlete(claims['userID'])
-            elif claims['role'] == 'coach':
-                trainings = TrainingService.get_all_coach(claims['userID'])
-            else:
-                return {"message": "no data found"}
+            trainings = TrainingService.get_all(claims)
         else:
             try:
-                if claims['role'] == 'athlete':
-                    trainings = TrainingService.get_by_args_athlete(claims['userID'], **TrainingSchema().load(dict(request.args.items())))
-                elif claims['role'] == 'coach':
-                    trainings = TrainingService.get_by_args_coach(claims['userID'], **TrainingSchema().load(dict(request.args.items())))
+                kwargs = TrainingSchema().load(dict(request.args.items()))
+                trainings = TrainingService.get_by_args(claims, kwargs)
             except ValidationError as err:
                 return err.messages
             except KeyError as err:
                 return {"error": "wrong data provided"}
-        return TrainingSchema().dump(trainings, many=True)
+        if len(trainings) != 0:
+            return TrainingSchema().dump(trainings, many=True)
+        else:
+            return {"Message": "No data found"}
 
+    @jwt_required
+    def post(self):
+        claims = get_jwt_claims()
+        if claims['role'] != 'coach':
+            return {"error": "non authorized access"}, 401
+        else:
+            try:
+                attrs = TrainingSchema().load(request.get_json(force=True))
+                if attrs['date'] <= date.today():
+                    raise ValidationError(message={"date": "Cannot plan a training for past"})
+                training_id = TrainingService.create(claims['userID'], attrs)
+                return {"Created training can be found under":
+                        "127.0.0.1:5000/trainings/{}".format(training_id)}
+            except ValidationError as err:
+                return err.messages
 
 class Exercises(Resource):
-    def get(self, id):
-        result = ExercisesService.get_by_id(id)
-        return ExerciseSchema().dump(result, many=True)
+    def get(self, training_id):
+        exercises = ExercisesService.get_by_id(training_id)
+        return ExerciseSchema().dump(exercises, many=True)
+
+    def post(self, training_id):
+        attrs = ExerciseSchema().load(request.get_json(force=True))
+        exercise = ExercisesService.create(training_id, attrs)
+        return {"Created exercise can be found under":
+                "127.0.0.1:5000/trainings/{}/exercises".format(training_id)}
