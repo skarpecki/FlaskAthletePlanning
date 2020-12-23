@@ -34,7 +34,7 @@ class UserService:
             last_name=attrs["last_name"],
             birthdate=attrs["birthdate"],
             role=attrs["role"],
-            password=bcrypt.hash(attrs["password"])
+            password=bcrypt.using().hash(attrs["password"])
         )
         db.session.add(user)    
         db.session.commit()

@@ -2,7 +2,6 @@ from flask import request
 from flask_restful import Resource
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt_claims
-from datetime import date
 
 from .service import TrainingService, ExercisesService
 from .schema import TrainingSchema, ExerciseSchema
@@ -10,9 +9,17 @@ from .model import Training
 
 
 class Trainings(Resource):
+    @jwt_required
     def get(self, training_id):
-        Training = TrainingService.get_by_id(training_id)
-        return TrainingSchema().dump(Training)
+        claims = get_jwt_claims()
+        try:
+            Training = TrainingService.get_by_id(training_id, claims)
+            return TrainingSchema().dump(Training)
+        except ValidationError as err:
+            return err.message
+        except AttributeError as err:
+            # TODO: LOG Exception {"Error": str(err)}
+            return {"Error": "No such training found"}
 
 
 #TODO: catch jwt exceptions
@@ -38,26 +45,35 @@ class TrainingsSearch(Resource):
     @jwt_required
     def post(self):
         claims = get_jwt_claims()
-        if claims['role'] != 'coach':
-            return {"error": "non authorized access"}, 401
-        else:
-            try:
-                attrs = TrainingSchema().load(request.get_json(force=True))
-                if attrs['date'] <= date.today():
-                    raise ValidationError(message={"date": "Cannot plan a training for past"})
-                training_id = TrainingService.create(claims['userID'], attrs)
-                return {"Created training can be found under":
-                        "127.0.0.1:5000/trainings/{}".format(training_id)}
-            except ValidationError as err:
-                return err.messages
+        try:
+            attrs = TrainingSchema().load(request.get_json(force=True))
+            training_id = TrainingService.create(claims, attrs)
+            return {"Created training can be found under":
+                    "127.0.0.1:5000/trainings/{}".format(training_id)}
+        except ValidationError as err:
+            return err.messages
 
 class Exercises(Resource):
+    @jwt_required
     def get(self, training_id):
-        exercises = ExercisesService.get_by_id(training_id)
-        return ExerciseSchema().dump(exercises, many=True)
+        try:
+            claims = get_jwt_claims()
+            exercises = ExercisesService.get_by_id(training_id, claims)
+            return ExerciseSchema().dump(exercises, many=True)
+        except ValidationError as err:
+            return err.messages
 
+    @jwt_required
     def post(self, training_id):
-        attrs = ExerciseSchema().load(request.get_json(force=True))
-        exercise = ExercisesService.create(training_id, attrs)
-        return {"Created exercise can be found under":
-                "127.0.0.1:5000/trainings/{}/exercises".format(training_id)}
+        try:
+            claims = get_jwt_claims()
+            attrs = ExerciseSchema().load(request.get_json(force=True))
+            exercise = ExercisesService.create(training_id, claims, attrs)
+            return {"Created exercise can be found under":
+                    "127.0.0.1:5000/trainings/{}/exercises".format(training_id)}
+        except ValidationError as err:
+            return err.messages
+        except AttributeError as err:
+            #TODO: LOG Exception {"Error": str(err)}
+            return {"Error": "No such training found"}
+

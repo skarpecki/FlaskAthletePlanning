@@ -4,6 +4,7 @@ from marshmallow import ValidationError
 from passlib.hash import bcrypt
 from flask_jwt_extended import create_access_token, get_jwt_claims, jwt_required
 from jwt import ExpiredSignature
+from sqlalchemy.exc import IntegrityError
 
 from app import jwt
 from .service import UserService, LoginService
@@ -49,6 +50,8 @@ class Users(Resource):
             return {"id": id}
         except ValidationError as err:
             return err.messages
+        except IntegrityError as err:
+            return {"error": "Provided mail address already exists"}
 
 
 class Login(Resource):
