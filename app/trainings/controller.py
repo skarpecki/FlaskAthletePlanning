@@ -2,6 +2,8 @@ from flask import request
 from flask_restful import Resource
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt_claims
+from sqlalchemy.exc import OperationalError
+from app.common.jwt_exception import catch_jwt_expired_token
 
 from .service import TrainingService, ExercisesService
 from .schema import TrainingSchema, ExerciseSchema
@@ -9,21 +11,47 @@ from .model import Training
 
 
 class Trainings(Resource):
+
+    @catch_jwt_expired_token
     @jwt_required
     def get(self, training_id):
-        claims = get_jwt_claims()
+        print("sth")
         try:
+            claims = get_jwt_claims()
             Training = TrainingService.get_by_id(training_id, claims)
             return TrainingSchema().dump(Training)
         except ValidationError as err:
             return err.message
         except AttributeError as err:
-            # TODO: LOG Exception {"Error": str(err)}
             return {"Error": "No such training found"}
+
+    @catch_jwt_expired_token
+    @jwt_required
+    def put(self, training_id):
+        claims = get_jwt_claims()
+        try:
+            # feedback should be sent as {"feedback": "text"}
+            args = request.get_json(force=True)
+            return_json = {}
+            if 'feedback' in args:
+                result = TrainingService.add_feedback(training_id, claims, args['feedback'])
+                return_json['feedback'] = result
+            if 'date' in args:
+                result = TrainingService.modify_date(training_id, claims, args['date'])
+                return_json['date'] = result
+            return return_json
+        except ValidationError as err:
+            return err.messages
+        except AttributeError as err:
+            return {"Error": "No such training found"}
+        except OperationalError as err:
+            return {"Error": "Wrong data provided"}
 
 
 #TODO: catch jwt exceptions
 class TrainingsSearch(Resource):
+
+    @catch_jwt_expired_token
     @jwt_required
     def get(self):
         claims = get_jwt_claims()
@@ -42,6 +70,7 @@ class TrainingsSearch(Resource):
         else:
             return {"Message": "No data found"}
 
+    @catch_jwt_expired_token
     @jwt_required
     def post(self):
         claims = get_jwt_claims()
@@ -53,7 +82,11 @@ class TrainingsSearch(Resource):
         except ValidationError as err:
             return err.messages
 
+
+
 class Exercises(Resource):
+
+    @catch_jwt_expired_token
     @jwt_required
     def get(self, training_id):
         try:
@@ -63,6 +96,7 @@ class Exercises(Resource):
         except ValidationError as err:
             return err.messages
 
+    @catch_jwt_expired_token
     @jwt_required
     def post(self, training_id):
         try:
@@ -74,6 +108,5 @@ class Exercises(Resource):
         except ValidationError as err:
             return err.messages
         except AttributeError as err:
-            #TODO: LOG Exception {"Error": str(err)}
             return {"Error": "No such training found"}
 

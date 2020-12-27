@@ -15,39 +15,32 @@ from .model import User
 
 class Users(Resource):
 
-#TODO: HOW TO CATCH THAT FUCKING EXPIRED JWT EXCEPTION!!!!111!!!111
+    @catch_jwt_expired_token
     @jwt_required
     def get(self) -> dict:
-        try:
-            claims = get_jwt_claims()
-            if claims["role"] != "coach":
-                return {"error": "non authorized access"}, 401
-            # if no args were passed return all users from database
-            if not request.args:
-                user = UserService.get_all(claims["userID"])
-            else:
-                try:
-                    # translating fields from userSchema to User fields (e.g. firstName to first_name) as the former is more popular in the internet
-                    result = UserSchema().load(dict(request.args.items()))
-                    user = UserService.get_by_args(**result)
-                except ValidationError as err:
-                    return err.messages
-                except KeyError as err:
-                    return {"error": "wrong data provided"}
-        except ExpiredSignature as err:
-            print("exception")
-            return {"message": err}
+        claims = get_jwt_claims()
+        if claims["role"] != "coach":
+            return {"error": "non authorized access"}, 401
+        # if no args were passed return all users from database
+        if not request.args:
+            user = UserService.get_all(claims["userID"])
+        else:
+            try:
+                result = UserSchema().load(dict(request.args.items()))
+                user = UserService.get_by_args(**result)
+            except ValidationError as err:
+                return err.messages
+            except KeyError as err:
+                return {"error": "wrong data provided"}
 
-        # user = UserService.get_by_args(**dict(request.args.items()))
         return AthleteCoachSchema().dump(user, many=True)
 
 
-    #TODO: ask whether user should be able to post a data like fields names, e.g. first_name instead of fisrtName
     def post(self) -> User:
         try:
             attrs = UserSchema().load(request.get_json(force=True))
             id = UserService.create(attrs)
-            return {"id": id}
+            return {"User account created succesfully. ID of user": id}
         except ValidationError as err:
             return err.messages
         except IntegrityError as err:
@@ -61,6 +54,7 @@ class Login(Resource):
                 "role": user['role']}
 
 
+    @catch_jwt_expired_token
     @jwt_required
     def get(self):
         try:
@@ -77,15 +71,15 @@ class Login(Resource):
     def post(self):
         try:
             result = LoginSchema().load(request.get_json(force=True))
-            user = LoginService().authenticate(**result)
-            user = UserSchema().dump(user[0])
-
+            user = LoginService().authenticate(result)
+            user = UserSchema().dump(user)
+            #moving below code to service will require mapping "id" from database table
+            #to "userID" what is here done by dumping user with UserSchema
             if bcrypt.verify(result['password'], user['password']):
                 access_token = create_access_token(user)
                 return make_response(jsonify(access_token), 200)
             else:
                 return {"message": "wrong password"}
-
         except ValidationError as err:
             return err.messages
         except KeyError as err:

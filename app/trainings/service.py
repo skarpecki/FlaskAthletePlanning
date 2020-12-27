@@ -1,5 +1,6 @@
 from marshmallow import ValidationError
 from datetime import date
+from dateutil.parser import parse
 
 from app import db
 from .model import Training
@@ -11,7 +12,7 @@ class TrainingService():
         print(claims['userID'])
         if claims['role'] == 'athlete':
             trainings = Training.query.filter_by(athletes_id=claims['userID']).all()
-        else:
+        elif claims['role'] == 'coach':
             trainings = Training.query.filter_by(coaches_id=claims['userID']).all()
         return trainings
 
@@ -19,6 +20,7 @@ class TrainingService():
     @staticmethod
     def get_by_args(claims, kwargs):
         if claims['role'] == 'athlete':
+            # if user will ask for trainings other than his it will be ignored and his training will be loaded
             kwargs.pop('athletes_id', None)
             trainings = Training.query.filter_by(athletes_id=claims['userID'], **kwargs).all()
         else:
@@ -33,7 +35,7 @@ class TrainingService():
         if training.athletes_id == claims['userID'] or training.coaches_id == claims['userID']:
             return training
         else:
-            raise ValidationError(message={"ID": "User doesnt have access to that training"})
+            raise ValidationError(message={"ID": "User doesn't have access to that training"})
 
     @staticmethod
     def create(claims, attrs):
@@ -51,22 +53,15 @@ class TrainingService():
         coach_athlete = db.session.query(vUserCoach).filter(vUserCoach.columns.coach_id == claims['userID']).all()
         athletes_ids = [t[1] for t in coach_athlete]
 
-        if attrs['athletes_id'] not in athletes_ids:
+        trainings = Training.query.filter_by(athletes_ids=attrs['athletes_id']).all()
+        # can add training only if athlete coached by logged in coach and if it is first training of particular athlete
+        # second is required as it won't be possible to add first training otherwise, as vUserCoach is based on trainings table
+        if attrs['athletes_id'] not in athletes_ids and len(trainings) != 0:
             raise ValidationError(message={"athleteID": "Provided athlete is not coached by logged in coach"})
 
-        if 'athlete_feedback' in attrs:
-            athlete_feedback = attrs['athlete_feedback']
-        else:
-            athlete_feedback = None
 
-        if 'coach_feedback' in attrs:
-            coach_feedback = attrs['coach_feedback']
-        else:
-            coach_feedback = None
         training = Training(
             date=attrs['date'],
-            athlete_feedback=athlete_feedback,
-            coach_feedback=coach_feedback,
             athletes_id=attrs['athletes_id'],
             coaches_id=claims['userID']
         )
@@ -77,7 +72,34 @@ class TrainingService():
 
 
 
-class ExercisesService():
+    @staticmethod
+    def add_feedback(training_id, claims, feedback):
+        training = Training.query.get(training_id)
+        if claims['role'] == 'coach' and training.coaches_id == claims['userID']:
+            training.coach_feedback = feedback
+            db.session.commit()
+            return feedback
+        elif claims['role'] == 'athlete' and training.athletes_id == claims['userID']:
+            training.athlete_feedback = feedback
+            db.session.commit()
+            return feedback
+        else:
+            raise ValidationError(message={"ID": "User doesn't have access to training"})
+
+    @staticmethod
+    def modify_date(training_id, claims, new_date):
+        new_date = parse(new_date).date()
+        if new_date <= date.today():
+            raise ValidationError(message={"date": "Cannot plan a training for past"})
+        training = Training.query.get(training_id)
+        if claims['role'] == 'coach' and training.coaches_id == claims['userID']:
+            training.date = new_date
+            db.session.commit()
+            return str(new_date)
+        else:
+            raise ValidationError(message={"ID": "User doesn't have access to training"})
+
+class ExercisesService:
     @staticmethod
     def get_by_id(training_id, claims):
         ExercisesService.validate(training_id, claims)
@@ -104,9 +126,7 @@ class ExercisesService():
     @staticmethod
     def validate(training_id, claims):
         training = Training.query.get(training_id)
-        if claims['role'] == 'coach':
-            if training.coaches_id != claims['userID']:
-                raise ValidationError(message={"ID": "User doesn't have access to the training provided"})
-        elif claims['role'] == 'athlete':
-            if training.athletes_id != claims['userID']:
-                raise ValidationError(message={"ID": "User doesn't have access to the training provided"})
+        if claims['role'] == 'coach' and training.coaches_id != claims['userID']:
+            raise ValidationError(message={"ID": "User doesn't have access to the training provided"})
+        elif claims['role'] == 'athlete' and training.athletes_id != claims['userID']:
+            raise ValidationError(message={"ID": "User doesn't have access to the training provided"})

@@ -1,6 +1,6 @@
-from app import db
-import sys
 from passlib.hash import bcrypt
+
+from app import db
 from .model import User
 
 
@@ -10,12 +10,13 @@ class UserService:
     def get_all(coach_id) -> list:
         metadata = db.MetaData()
         metadata.bind = db.engine
+        #create view table
         vUserCoach = db.Table("vcoaches_athletes", metadata,
                               db.Column("coach_id", db.Integer, primary_key=True),
                               db.Column("athlete_id", db.Integer, db.ForeignKey("users.id")),
                               autoload=True)
         coach_athlete = db.session.query(vUserCoach).filter(vUserCoach.columns.coach_id == coach_id).all()
-        #list of tuples of (coach_id, athlete_id)
+        #coach_athlete is a list of tuples of (coach_id, athlete_id)
         athletes_ids = [t[1] for t in coach_athlete]
         athletes = User.query.filter(User.id.in_(athletes_ids)).all()
         return athletes
@@ -44,5 +45,6 @@ class UserService:
 class LoginService:
     @staticmethod
     def authenticate(mail_address, password) -> User:
-        user = User.query.filter(User.mail_address == mail_address)
+        user = User.query.filter(User.mail_address == mail_address).first()
+
         return user

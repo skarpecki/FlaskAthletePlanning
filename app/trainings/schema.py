@@ -15,3 +15,4 @@ class ExerciseSchema(Schema):
     reps = fields.Integer(attribute='reps')
     rpe = fields.Number(attribute='rpe')
     trainingID = fields.Integer(attribute='trainings_id')
+
