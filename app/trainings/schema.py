@@ -16,3 +16,9 @@ class ExerciseSchema(Schema):
     rpe = fields.Number(attribute='rpe')
     trainingID = fields.Integer(attribute='trainings_id')
 
+class ExerciseUpdateSchema(Schema):
+    exerciseName = fields.String(attribute='exercise')
+    sets = fields.Integer(attribute='sets')
+    reps = fields.Integer(attribute='reps')
+    rpe = fields.Number(attribute='rpe')
+

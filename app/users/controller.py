@@ -10,12 +10,13 @@ from app import jwt
 from .service import UserService, LoginService
 from .schema import UserSchema, AthleteCoachSchema, LoginSchema
 from .model import User
+from app.common.jwt_exceptions_handler import catch_jwt_exceptions
 
 
 
 class Users(Resource):
 
-    @catch_jwt_expired_token
+    @catch_jwt_exceptions
     @jwt_required
     def get(self) -> dict:
         claims = get_jwt_claims()
@@ -54,7 +55,7 @@ class Login(Resource):
                 "role": user['role']}
 
 
-    @catch_jwt_expired_token
+    @catch_jwt_exceptions
     @jwt_required
     def get(self):
         try:
@@ -71,7 +72,7 @@ class Login(Resource):
     def post(self):
         try:
             result = LoginSchema().load(request.get_json(force=True))
-            user = LoginService().authenticate(result)
+            user = LoginService().authenticate( result["mail_address"])
             user = UserSchema().dump(user)
             #moving below code to service will require mapping "id" from database table
             #to "userID" what is here done by dumping user with UserSchema

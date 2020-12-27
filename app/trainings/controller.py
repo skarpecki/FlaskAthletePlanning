@@ -3,29 +3,29 @@ from flask_restful import Resource
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt_claims
 from sqlalchemy.exc import OperationalError
-from app.common.jwt_exception import catch_jwt_expired_token
+from app.common.jwt_exceptions_handler import catch_jwt_exceptions
 
 from .service import TrainingService, ExercisesService
-from .schema import TrainingSchema, ExerciseSchema
+from .schema import TrainingSchema, ExerciseSchema, ExerciseUpdateSchema
 from .model import Training
 
 
 class Trainings(Resource):
 
-    @catch_jwt_expired_token
+    @catch_jwt_exceptions
     @jwt_required
     def get(self, training_id):
-        print("sth")
         try:
             claims = get_jwt_claims()
             Training = TrainingService.get_by_id(training_id, claims)
             return TrainingSchema().dump(Training)
         except ValidationError as err:
-            return err.message
+            return err.messages
         except AttributeError as err:
             return {"Error": "No such training found"}
 
-    @catch_jwt_expired_token
+
+    @catch_jwt_exceptions
     @jwt_required
     def put(self, training_id):
         claims = get_jwt_claims()
@@ -51,7 +51,7 @@ class Trainings(Resource):
 #TODO: catch jwt exceptions
 class TrainingsSearch(Resource):
 
-    @catch_jwt_expired_token
+    @catch_jwt_exceptions
     @jwt_required
     def get(self):
         claims = get_jwt_claims()
@@ -68,9 +68,9 @@ class TrainingsSearch(Resource):
         if len(trainings) != 0:
             return TrainingSchema().dump(trainings, many=True)
         else:
-            return {"Message": "No data found"}
+            return {"Message": "No training found"}
 
-    @catch_jwt_expired_token
+    @catch_jwt_exceptions
     @jwt_required
     def post(self):
         claims = get_jwt_claims()
@@ -85,22 +85,23 @@ class TrainingsSearch(Resource):
 
 
 class Exercises(Resource):
-
-    @catch_jwt_expired_token
+    @catch_jwt_exceptions
     @jwt_required
     def get(self, training_id):
+        claims = get_jwt_claims()
         try:
-            claims = get_jwt_claims()
-            exercises = ExercisesService.get_by_id(training_id, claims)
+            exercises = ExercisesService.get_all(training_id, claims)
             return ExerciseSchema().dump(exercises, many=True)
         except ValidationError as err:
             return err.messages
+        except AttributeError as err:
+            return {"Error": "No such training found"}
 
-    @catch_jwt_expired_token
+    @catch_jwt_exceptions
     @jwt_required
     def post(self, training_id):
+        claims = get_jwt_claims()
         try:
-            claims = get_jwt_claims()
             attrs = ExerciseSchema().load(request.get_json(force=True))
             exercise = ExercisesService.create(training_id, claims, attrs)
             return {"Created exercise can be found under":
@@ -110,3 +111,41 @@ class Exercises(Resource):
         except AttributeError as err:
             return {"Error": "No such training found"}
 
+class ExercisesWithID(Resource):
+    @catch_jwt_exceptions
+    @jwt_required
+    def get(self, training_id, exercise_id):
+        claims = get_jwt_claims()
+        try:
+            exercise = ExercisesService.get_by_id(training_id, exercise_id, claims)
+            return ExerciseSchema().dump(exercise)
+        except ValidationError as err:
+            return err.messages
+        except AttributeError as err:
+            return {"Error": "No such resource found"}
+
+    @catch_jwt_exceptions
+    @jwt_required
+    def put(self, training_id, exercise_id):
+        claims = get_jwt_claims()
+        try:
+            attrs = ExerciseUpdateSchema().load(request.get_json(force=True))
+            exercise = ExercisesService.update(training_id, exercise_id, claims, **attrs)
+            return ExerciseSchema().dump(exercise)
+        except ValidationError as err:
+            return err.messages
+        except AttributeError as err:
+            return {"Error": "Error"}
+
+    @catch_jwt_exceptions
+    @jwt_required
+    def delete(self, training_id, exercise_id):
+        claims = get_jwt_claims()
+        try:
+            ExercisesService.delete(training_id, exercise_id, claims)
+            return {"message": "Succesfully deleted exercise of id: {}".format(exercise_id)}
+        except ValidationError as err:
+            return err.messages
+        except AttributeError as err:
+            print(str(err))
+            return {"Error": "No such resource found"}

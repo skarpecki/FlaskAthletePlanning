@@ -44,7 +44,6 @@ class UserService:
 
 class LoginService:
     @staticmethod
-    def authenticate(mail_address, password) -> User:
+    def authenticate(mail_address) -> User:
         user = User.query.filter(User.mail_address == mail_address).first()
-
         return user

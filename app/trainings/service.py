@@ -101,10 +101,16 @@ class TrainingService():
 
 class ExercisesService:
     @staticmethod
-    def get_by_id(training_id, claims):
+    def get_all(training_id, claims):
         ExercisesService.validate(training_id, claims)
         result = Exercise.query.filter_by(trainings_id=training_id).all()
         return result
+
+    @staticmethod
+    def get_by_id(training_id, exercise_id, claims):
+        ExercisesService.validate(training_id, claims)
+        exercise = Exercise.query.filter_by(id=exercise_id, trainings_id=training_id).first()
+        return exercise
 
     @staticmethod
     def create(training_id, claims, attrs):
@@ -120,8 +126,27 @@ class ExercisesService:
         )
         db.session.add(exercise)
         db.session.commit()
-
         return exercise
+
+    @staticmethod
+    def update(training_id, exercise_id, claims, **kwargs):
+        if claims['role'] == 'athlete':
+            raise ValidationError(message={"ID": "Athlete cannot update exercise"})
+        ExercisesService.validate(training_id, claims)
+        exercise = Exercise.query.filter_by(id=exercise_id, trainings_id=training_id).first()
+        for key, item in kwargs.items():
+            setattr(exercise, key, item)
+        db.session.commit()
+        return exercise
+
+    @staticmethod
+    def delete(training_id, exercise_id, claims):
+        if claims['role'] == 'athlete':
+            raise ValidationError(message={"ID": "Athlete cannot remove exercise"})
+        ExercisesService.validate(training_id, claims)
+        exercise_id = db.session.query(Exercise).filter_by(id=exercise_id, trainings_id=training_id).delete(synchronize_session='fetch')
+        db.session. commit()
+        return exercise_id
 
     @staticmethod
     def validate(training_id, claims):
