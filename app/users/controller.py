@@ -45,7 +45,7 @@ class Users(Resource):
         except ValidationError as err:
             return err.messages
         except IntegrityError as err:
-            return {"error": "Provided mail address already exists"}
+            return {"error": "Provided mail address is already registered"}
 
 
 class Login(Resource):
@@ -72,7 +72,7 @@ class Login(Resource):
     def post(self):
         try:
             result = LoginSchema().load(request.get_json(force=True))
-            user = LoginService().authenticate( result["mail_address"])
+            user = LoginService().authenticate(result["mail_address"])
             user = UserSchema().dump(user)
             #moving below code to service will require mapping "id" from database table
             #to "userID" what is here done by dumping user with UserSchema

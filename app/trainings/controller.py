@@ -135,7 +135,8 @@ class ExercisesWithID(Resource):
         except ValidationError as err:
             return err.messages
         except AttributeError as err:
-            return {"Error": "Error"}
+            # TODO: two versions, one for debugging (like below), one for prod with some message for user
+            return {"Error": str(err)}
 
     @catch_jwt_exceptions
     @jwt_required

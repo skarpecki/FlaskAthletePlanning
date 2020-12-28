@@ -2,9 +2,10 @@ from passlib.hash import bcrypt
 
 from app import db
 from .model import User
+from app.common.logger import Logger
+from datetime import datetime
 
 
-#TODO: Implement join to constraint list to athlets that are coached by a coach from jwt
 class UserService:
     @staticmethod
     def get_all(coach_id) -> list:
@@ -39,6 +40,7 @@ class UserService:
         )
         db.session.add(user)    
         db.session.commit()
+        Logger.log_message(user.id, 'user', 'mail_address', 'null', user.mail_address)
         return user.id
 
 

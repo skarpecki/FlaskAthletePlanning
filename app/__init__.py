@@ -2,7 +2,6 @@ from flask import Flask
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
-import sys
 
 
 db = SQLAlchemy()
@@ -30,8 +29,6 @@ def create_app(test_config=None) -> 'Flask app':
     api.add_resource(trainings_controller.Exercises, '/trainings/<int:training_id>/exercises')
     api.add_resource(trainings_controller.ExercisesWithID, '/trainings/<int:training_id>/exercises/<int:exercise_id>')
 
-
-    
 
     # me = model.Athlete(id=1)
     # with app.app_context():
