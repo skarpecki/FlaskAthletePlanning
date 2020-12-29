@@ -1,6 +1,5 @@
 from app import db
 
-#TODO:implement training type
 
 class Training(db.Model):
     """Training model class"""

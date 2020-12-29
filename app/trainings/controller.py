@@ -48,7 +48,6 @@ class Trainings(Resource):
             return {"Error": "Wrong data provided"}
 
 
-#TODO: catch jwt exceptions
 class TrainingsSearch(Resource):
 
     @catch_jwt_exceptions
