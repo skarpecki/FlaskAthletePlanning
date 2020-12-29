@@ -43,7 +43,7 @@ class Trainings(Resource):
         except ValidationError as err:
             return err.messages
         except AttributeError as err:
-            return {"Error": "No such training found"}
+            return {"Error": str(err)}
         except OperationalError as err:
             return {"Error": "Wrong data provided"}
 

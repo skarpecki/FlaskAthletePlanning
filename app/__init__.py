@@ -2,8 +2,12 @@ from flask import Flask
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
+from ssl import create_default_context
 
+from app.common.messenger import EmailHandler
 
+context = create_default_context()
+handler = EmailHandler("localhost", 1025, "me@me.pl", context)
 db = SQLAlchemy()
 jwt = JWTManager()
 

@@ -1,11 +1,13 @@
 from marshmallow import ValidationError
 from datetime import date
 from dateutil.parser import parse
+from copy import deepcopy
 
-from app import db
+from app import db, handler
 from .model import Training
 from .model import Exercise
 from app.common.logger import Logger
+from app.users.model import User
 from datetime import datetime
 
 class TrainingService():
@@ -61,12 +63,14 @@ class TrainingService():
         if attrs['athletes_id'] not in athletes_ids and len(trainings) != 0:
             raise ValidationError(message={"athleteID": "Provided athlete is not coached by logged in coach"})
 
-
         training = Training(
             date=attrs['date'],
             athletes_id=attrs['athletes_id'],
             coaches_id=claims['userID']
         )
+        athlete = User.query.get(training.athletes_id)
+        coach = User.query.get(training.coaches_id)
+
         db.session.add(training)
         db.session.commit()
 
@@ -74,6 +78,7 @@ class TrainingService():
         #    Logger.log_message(claims['userID'], 'trainings', key, 'null', item)
         #logging only id instead of all attributes
         Logger.log_message(claims['userID'], 'trainings', 'id', 'null', training.id)
+        handler.new_training_msg(athlete.mail_address, training, coach)
 
         return training.id
 
@@ -107,11 +112,15 @@ class TrainingService():
             raise ValidationError(message={"date": "Cannot plan a training for past"})
         training = Training.query.get(training_id)
         if claims['role'] == 'coach' and training.coaches_id == claims['userID']:
-            old_date = training.date
+            old_date = training.date  # training.date is of type datetime, hence parsing to date
+            if old_date.date() == new_date:
+                raise ValidationError({"message": "Provided date is same as currently assigned to this training"})
             training.date = new_date
             db.session.commit()
             Logger.log_message(claims['userID'], 'trainings', 'date',
-                               old_date, training.date)
+                               old_date.date(), training.date.date())
+            athlete = User.query.get(training.athletes_id)
+            handler.updated_train_date_msg(athlete.mail_address, old_date, training)
             return str(new_date)
         else:
             raise ValidationError(message={"ID": "User doesn't have access to training"})
@@ -133,7 +142,7 @@ class ExercisesService:
     def create(training_id, claims, attrs):
         if claims['role'] == 'athlete':
             raise ValidationError(message={"ID": "Athlete cannot insert exercise"})
-        ExercisesService.validate(training_id, claims)
+        training = ExercisesService.validate(training_id, claims)
         exercise = Exercise(
             exercise=attrs["exercise"],
             sets=attrs["sets"],
@@ -147,6 +156,8 @@ class ExercisesService:
         #    Logger.log_message(claims['userID'], 'exercises', key, "null", item)
         # logging only id instead of all attributes
         Logger.log_message(claims['userID'], 'exercises', 'id', 'null', exercise.id)
+        athlete_mail = User.query.get(training.athletes_id).mail_address
+        handler.new_exercise_msg(athlete_mail, training.date, exercise)
 
         return exercise
 
@@ -154,20 +165,27 @@ class ExercisesService:
     def update(training_id, exercise_id, claims, **kwargs):
         if claims['role'] == 'athlete':
             raise ValidationError(message={"ID": "Athlete cannot update exercise"})
-        ExercisesService.validate(training_id, claims)
+        training = ExercisesService.validate(training_id, claims)
         exercise = Exercise.query.filter_by(id=exercise_id, trainings_id=training_id).first()
         if exercise is None:
             raise ValidationError(message={"exerciseID": "Exercise of provided ID doesn't exist"})
         old_kwargs = {}
+        old_exercise = deepcopy(exercise)
         for key, item in kwargs.items():
             old_kwargs[key] = getattr(exercise, key, "null")
             setattr(exercise, key, item)
         db.session.commit()
-        # having two for loops as event can be logged only after committing (possibility of exception)
+        # having two for loops as event can be logged only after committing (possibility of exception)]
+        was_any_change = False
         for key, item in kwargs.items():
             #log only if any change occured
             if old_kwargs[key] != kwargs[key]:
+                was_any_change = True
                 Logger.log_message(claims['userID'], 'exercises', key, old_kwargs[key], kwargs[key])
+        if not was_any_change:
+            raise ValidationError(message={"Message": "No change was made"})
+        athlete_mail = User.query.get(training.athletes_id).mail_address
+        handler.update_exercise_msg(athlete_mail, training.date, old_exercise, exercise)
         return exercise
 
     @staticmethod
@@ -187,3 +205,4 @@ class ExercisesService:
             raise ValidationError(message={"ID": "User doesn't have access to the training provided"})
         elif claims['role'] == 'athlete' and training.athletes_id != claims['userID']:
             raise ValidationError(message={"ID": "User doesn't have access to the training provided"})
+        return training
