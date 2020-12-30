@@ -38,7 +38,7 @@ class EmailHandler:
                                            created_utc=datetime.utcnow())
             conn = self.db.engine.connect()
             result = conn.execute(ins)
-            else:
+        else:
             raise TypeError("Database was not initialized")
 
     def new_training_msg(self, addresse, training, coach):
