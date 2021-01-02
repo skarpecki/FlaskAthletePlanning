@@ -19,6 +19,6 @@ def catch_jwt_exceptions(func):
         except DecodeError:
             return make_response(jsonify({"message": "JWT Token is invalid"}), 401)
         except NoAuthorizationError:
-            return make_response(jsonify({"message": "JWT Token is missing"}), 401)
+            return make_response(jsonify({"message": "JWT Token is missing"}), 403)
 
     return wrapper

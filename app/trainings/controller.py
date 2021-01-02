@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, make_response, jsonify
 from flask_restful import Resource
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt_claims
@@ -18,11 +18,12 @@ class Trainings(Resource):
         try:
             claims = get_jwt_claims()
             Training = TrainingService.get_by_id(training_id, claims)
-            return TrainingSchema().dump(Training)
+            return make_response(TrainingSchema().dump(Training), 200)
         except ValidationError as err:
-            return err.messages
-        except AttributeError as err:
-            return {"Error": "No such training found"}
+            return make_response(err.messages, 400)
+        except Exception as err:
+            #TODO: retruning this responsing only in dev mode
+            return make_response(jsonify({"Error": str(err)}, 500))
 
 
     @catch_jwt_exceptions
@@ -34,18 +35,15 @@ class Trainings(Resource):
             args = request.get_json(force=True)
             return_json = {}
             if 'feedback' in args:
-                result = TrainingService.add_feedback(training_id, claims, args['feedback'])
-                return_json['feedback'] = result
+                TrainingService.add_feedback(training_id, claims, args['feedback'])
             if 'date' in args:
-                result = TrainingService.modify_date(training_id, claims, args['date'])
-                return_json['date'] = result
-            return return_json
+                TrainingService.modify_date(training_id, claims, args['date'])
+            response = {"Modified content can be found under": "127.0.0.1:5000/trainings/{}".format(training_id)}
+            make_response(jsonify(response), 201)
         except ValidationError as err:
-            return err.messages
-        except AttributeError as err:
-            return {"Error": str(err)}
-        except OperationalError as err:
-            return {"Error": "Wrong data provided"}
+            return make_response(jsonify(err.messages), 400)
+        except Exception as err:
+            return make_response(jsonify({"Error": str(err)}), 500)
 
 
 class TrainingsSearch(Resource):
@@ -61,13 +59,13 @@ class TrainingsSearch(Resource):
                 kwargs = TrainingSchema().load(dict(request.args.items()))
                 trainings = TrainingService.get_by_args(claims, kwargs)
             except ValidationError as err:
-                return err.messages
+                return make_response(jsonify(err.messages), 400)
             except KeyError as err:
-                return {"error": "wrong data provided"}
+                return make_response(jsonify({"error": "wrong data provided"}),400)
         if len(trainings) != 0:
-            return TrainingSchema().dump(trainings, many=True)
+            return jsonify(make_response(TrainingSchema().dump(trainings, many=True)), 200)
         else:
-            return {"Message": "No training found"}
+            return make_response(jsonify({"Message": "No training found"}), 204)
 
     @catch_jwt_exceptions
     @jwt_required
@@ -76,11 +74,11 @@ class TrainingsSearch(Resource):
         try:
             attrs = TrainingSchema().load(request.get_json(force=True))
             training_id = TrainingService.create(claims, attrs)
-            return {"Created training can be found under":
-                    "127.0.0.1:5000/trainings/{}".format(training_id)}
+            response = {"Created training can be found under":
+                        "127.0.0.1:5000/trainings/{}".format(training_id)}
+            return make_response(jsonify(response), 201)
         except ValidationError as err:
-            return err.messages
-
+            return make_response(jsonify(err.messages), 400)
 
 
 class Exercises(Resource):
@@ -90,11 +88,9 @@ class Exercises(Resource):
         claims = get_jwt_claims()
         try:
             exercises = ExercisesService.get_all(training_id, claims)
-            return ExerciseSchema().dump(exercises, many=True)
+            return make_response(jsonify(ExerciseSchema().dump(exercises, many=True)), 200)
         except ValidationError as err:
-            return err.messages
-        except AttributeError as err:
-            return {"Error": "No such training found"}
+            return make_response(jsonify(err.messages), 400)
 
     @catch_jwt_exceptions
     @jwt_required
@@ -103,10 +99,11 @@ class Exercises(Resource):
         try:
             attrs = ExerciseSchema().load(request.get_json(force=True))
             exercise = ExercisesService.create(training_id, claims, attrs)
-            return {"Created exercise can be found under":
-                    "127.0.0.1:5000/trainings/{}/exercises".format(training_id)}
+            response = {"Created exercise can be found under":
+                        "127.0.0.1:5000/trainings/{}/exercises".format(training_id)}
+            return make_response(jsonify(response), 201)
         except ValidationError as err:
-            return err.messages
+            return make_response(jsonify(err.messages), 400)
         except AttributeError as err:
             return {"Error": "No such training found"}
 
@@ -117,11 +114,9 @@ class ExercisesWithID(Resource):
         claims = get_jwt_claims()
         try:
             exercise = ExercisesService.get_by_id(training_id, exercise_id, claims)
-            return ExerciseSchema().dump(exercise)
+            return make_response(jsonify(ExerciseSchema().dump(exercise)), 200)
         except ValidationError as err:
-            return err.messages
-        except AttributeError as err:
-            return {"Error": "No such resource found"}
+            return make_response(jsonify(err.messages), 400)
 
     @catch_jwt_exceptions
     @jwt_required
@@ -130,12 +125,12 @@ class ExercisesWithID(Resource):
         try:
             attrs = ExerciseUpdateSchema().load(request.get_json(force=True))
             exercise = ExercisesService.update(training_id, exercise_id, claims, **attrs)
-            return ExerciseSchema().dump(exercise)
+            response = {"Updated content can be find under":
+                       "127.0.0.1:5000/trainings/{}/exercises/{}".format(training_id, exercise_id)}
+            return make_response(jsonify(response), 201)
         except ValidationError as err:
-            return err.messages
-        except AttributeError as err:
-            # TODO: two versions, one for debugging (like below), one for prod with some message for user
-            return {"Error": str(err)}
+            return make_response(jsonify(err.messages), 400)
+
 
     @catch_jwt_exceptions
     @jwt_required
@@ -143,9 +138,7 @@ class ExercisesWithID(Resource):
         claims = get_jwt_claims()
         try:
             ExercisesService.delete(training_id, exercise_id, claims)
-            return {"message": "Succesfully deleted exercise of id: {}".format(exercise_id)}
+            response = {"message": "Successfully deleted exercise of id: {}".format(exercise_id)}
+            make_response(jsonify(response), 200)
         except ValidationError as err:
-            return err.messages
-        except AttributeError as err:
-            print(str(err))
-            return {"Error": "No such resource found"}
+            return make_response(jsonify(err.messages), 400)

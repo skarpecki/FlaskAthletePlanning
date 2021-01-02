@@ -21,7 +21,7 @@ class Users(Resource):
     def get(self) -> dict:
         claims = get_jwt_claims()
         if claims["role"] != "coach":
-            return {"error": "non authorized access"}, 401
+            return make_response(jsonify({"error": "non authorized access"}), 401)
         # if no args were passed return all users from database
         if not request.args:
             user = UserService.get_all(claims["userID"])
@@ -30,23 +30,22 @@ class Users(Resource):
                 result = UserSchema().load(dict(request.args.items()))
                 user = UserService.get_by_args(**result)
             except ValidationError as err:
-                return err.messages
+                return make_response(err.messages, 400)
             except KeyError as err:
-                return {"error": "wrong data provided"}
-
-        return AthleteCoachSchema().dump(user, many=True)
+                return make_response(jsonify({"error": "wrong data provided"}), 400)
+        return make_response(jsonify(AthleteCoachSchema().dump(user, many=True)), 200)
 
 
     def post(self) -> User:
         try:
             attrs = UserSchema().load(request.get_json(force=True))
             id = UserService.create(attrs)
-            return {"User account created succesfully. ID of user": id}
+            return make_response(jsonify({"User account created succesfully. ID of user": id}),201)
         except ValidationError as err:
-            return err.messages
+            return make_response(err.messages, 400)
         except IntegrityError as err:
-            return {"error": "Provided mail address is already registered"}
-
+            response = {"error": "Provided mail address is already registered"}
+            return make_response(jsonify(response), 400)
 
 class Login(Resource):
     @jwt.user_claims_loader
@@ -80,13 +79,13 @@ class Login(Resource):
                 access_token = create_access_token(user)
                 return make_response(jsonify(access_token), 200)
             else:
-                return {"message": "wrong password"}
+                return make_response(jsonify({"message": "wrong password"}), 400)
         except ValidationError as err:
-            return err.messages
+            return make_response(err.messages, 400)
         except KeyError as err:
             print(err)
-            return {"error": "wrong data provided"}, 400
+            return make_response(jsonify({"error": "wrong json key"}), 400)
         # index error may be raised by UserSchema().dump(user[0]) if no user is returned by query
         except IndexError as err:
             print(err)
-            return {"message": "wrong e-mail or password"}, 400
+            return make_response(jsonify({"message": "wrong e-mail or password"}), 400)
