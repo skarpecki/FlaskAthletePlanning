@@ -10,10 +10,10 @@ context = create_default_context()
 handler = EmailHandler("localhost", 1025, "me@me.pl", context)
 db = SQLAlchemy()
 jwt = JWTManager()
+app = Flask(__name__)
 
 
 def create_app(test_config=None) -> 'Flask app':
-    app = Flask(__name__)
     api = Api(app)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://user:user@localhost/athlete_planning'
     app.config['JWT_SECRET_KEY'] = 'dev'
@@ -36,5 +36,4 @@ def create_app(test_config=None) -> 'Flask app':
     # with app.app_context():
     #     db.session.add(me)
     #     db.session.commit()
-
     return app

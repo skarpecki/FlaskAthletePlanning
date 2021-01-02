@@ -17,13 +17,12 @@ class Trainings(Resource):
     def get(self, training_id):
         try:
             claims = get_jwt_claims()
-            Training = TrainingService.get_by_id(training_id, claims)
-            return make_response(TrainingSchema().dump(Training), 200)
+            training = TrainingService.get_by_id(training_id, claims)
+            status = 404 if training is None else 200
+            return make_response(TrainingSchema().dump(training), status)
         except ValidationError as err:
             return make_response(err.messages, 400)
-        except Exception as err:
-            #TODO: retruning this responsing only in dev mode
-            return make_response(jsonify({"Error": str(err)}, 500))
+
 
 
     @catch_jwt_exceptions
@@ -35,11 +34,16 @@ class Trainings(Resource):
             args = request.get_json(force=True)
             return_json = {}
             if 'feedback' in args:
-                TrainingService.add_feedback(training_id, claims, args['feedback'])
+                feedback = TrainingService.add_feedback(training_id, claims, args['feedback'])
             if 'date' in args:
-                TrainingService.modify_date(training_id, claims, args['date'])
-            response = {"Modified content can be found under": "127.0.0.1:5000/trainings/{}".format(training_id)}
-            make_response(jsonify(response), 201)
+                date = TrainingService.modify_date(training_id, claims, args['date'])
+            if date is None and feedback is None:
+                response = {}
+                status = 404
+            else:
+                response = {"Modified content can be found under": "127.0.0.1:5000/trainings/{}".format(training_id)}
+                status = 201
+            return make_response(jsonify(response), status)
         except ValidationError as err:
             return make_response(jsonify(err.messages), 400)
         except Exception as err:
@@ -63,7 +67,7 @@ class TrainingsSearch(Resource):
             except KeyError as err:
                 return make_response(jsonify({"error": "wrong data provided"}),400)
         if len(trainings) != 0:
-            return jsonify(make_response(TrainingSchema().dump(trainings, many=True)), 200)
+            return make_response(jsonify(TrainingSchema().dump(trainings, many=True)), 200)
         else:
             return make_response(jsonify({"Message": "No training found"}), 204)
 
@@ -88,7 +92,8 @@ class Exercises(Resource):
         claims = get_jwt_claims()
         try:
             exercises = ExercisesService.get_all(training_id, claims)
-            return make_response(jsonify(ExerciseSchema().dump(exercises, many=True)), 200)
+            status = 404 if exercises is None or len(exercises) == 0 else 200
+            return make_response(jsonify(ExerciseSchema().dump(exercises, many=True)), status)
         except ValidationError as err:
             return make_response(jsonify(err.messages), 400)
 
@@ -99,9 +104,14 @@ class Exercises(Resource):
         try:
             attrs = ExerciseSchema().load(request.get_json(force=True))
             exercise = ExercisesService.create(training_id, claims, attrs)
-            response = {"Created exercise can be found under":
-                        "127.0.0.1:5000/trainings/{}/exercises".format(training_id)}
-            return make_response(jsonify(response), 201)
+            if exercise is None:
+                response = {}
+                status = 404
+            else:
+                response = {"Created exercise can be found under":
+                            "127.0.0.1:5000/trainings/{}/exercises".format(training_id)}
+                status = 201
+            return make_response(jsonify(response), status)
         except ValidationError as err:
             return make_response(jsonify(err.messages), 400)
         except AttributeError as err:
@@ -114,7 +124,8 @@ class ExercisesWithID(Resource):
         claims = get_jwt_claims()
         try:
             exercise = ExercisesService.get_by_id(training_id, exercise_id, claims)
-            return make_response(jsonify(ExerciseSchema().dump(exercise)), 200)
+            status = 404 if exercise is None else 200
+            return make_response(jsonify(ExerciseSchema().dump(exercise)), status)
         except ValidationError as err:
             return make_response(jsonify(err.messages), 400)
 
@@ -125,9 +136,14 @@ class ExercisesWithID(Resource):
         try:
             attrs = ExerciseUpdateSchema().load(request.get_json(force=True))
             exercise = ExercisesService.update(training_id, exercise_id, claims, **attrs)
-            response = {"Updated content can be find under":
-                       "127.0.0.1:5000/trainings/{}/exercises/{}".format(training_id, exercise_id)}
-            return make_response(jsonify(response), 201)
+            if exercise is None:
+                response = {}
+                status = 404
+            else:
+                response = {"Updated content can be find under":
+                           "127.0.0.1:5000/trainings/{}/exercises/{}".format(training_id, exercise_id)}
+                status = 201
+            return make_response(jsonify(response), status)
         except ValidationError as err:
             return make_response(jsonify(err.messages), 400)
 
@@ -137,8 +153,13 @@ class ExercisesWithID(Resource):
     def delete(self, training_id, exercise_id):
         claims = get_jwt_claims()
         try:
-            ExercisesService.delete(training_id, exercise_id, claims)
-            response = {"message": "Successfully deleted exercise of id: {}".format(exercise_id)}
-            make_response(jsonify(response), 200)
+            exercise = ExercisesService.delete(training_id, exercise_id, claims)
+            if exercise is None:
+                response = {}
+                status = 404
+            else:
+                response = {"message": "Successfully deleted exercise of id: {}".format(exercise_id)}
+                status = 200
+            return make_response(jsonify(response), status)
         except ValidationError as err:
             return make_response(jsonify(err.messages), 400)

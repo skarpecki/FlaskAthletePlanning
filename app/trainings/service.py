@@ -36,6 +36,8 @@ class TrainingService():
     @staticmethod
     def get_by_id(training_id, claims):
         training = Training.query.get(training_id)
+        if training is None:
+            return None
         if training.athletes_id == claims['userID'] or training.coaches_id == claims['userID']:
             return training
         else:
@@ -87,6 +89,8 @@ class TrainingService():
     @staticmethod
     def add_feedback(training_id, claims, feedback):
         training = Training.query.get(training_id)
+        if training is None:
+            return None
         if claims['role'] == 'coach' and training.coaches_id == claims['userID']:
             old_feedback = "null" if training.coach_feedback is None else training.coach_feedback
             training.coach_feedback = feedback
@@ -111,6 +115,8 @@ class TrainingService():
         if new_date <= date.today():
             raise ValidationError(message={"date": "Cannot plan a training for past"})
         training = Training.query.get(training_id)
+        if training is None:
+            return None
         if claims['role'] == 'coach' and training.coaches_id == claims['userID']:
             old_date = training.date  # training.date is of type datetime, hence parsing to date
             if old_date.date() == new_date:
@@ -128,13 +134,17 @@ class TrainingService():
 class ExercisesService:
     @staticmethod
     def get_all(training_id, claims):
-        ExercisesService.validate(training_id, claims)
+        training = ExercisesService.validate(training_id, claims)
+        if training is None:
+            return None
         result = Exercise.query.filter_by(trainings_id=training_id).all()
         return result
 
     @staticmethod
     def get_by_id(training_id, exercise_id, claims):
-        ExercisesService.validate(training_id, claims)
+        training = ExercisesService.validate(training_id, claims)
+        if training is None:
+            return None
         exercise = Exercise.query.filter_by(id=exercise_id, trainings_id=training_id).first()
         return exercise
 
@@ -143,6 +153,8 @@ class ExercisesService:
         if claims['role'] == 'athlete':
             raise ValidationError(message={"ID": "Athlete cannot insert exercise"})
         training = ExercisesService.validate(training_id, claims)
+        if training is None:
+            return None
         exercise = Exercise(
             exercise=attrs["exercise"],
             sets=attrs["sets"],
@@ -166,9 +178,11 @@ class ExercisesService:
         if claims['role'] == 'athlete':
             raise ValidationError(message={"ID": "Athlete cannot update exercise"})
         training = ExercisesService.validate(training_id, claims)
+        if training is None:
+            return None
         exercise = Exercise.query.filter_by(id=exercise_id, trainings_id=training_id).first()
         if exercise is None:
-            raise ValidationError(message={"exerciseID": "Exercise of provided ID doesn't exist"})
+            return None
         old_kwargs = {}
         old_exercise = deepcopy(exercise)
         for key, item in kwargs.items():
@@ -192,15 +206,23 @@ class ExercisesService:
     def delete(training_id, exercise_id, claims):
         if claims['role'] == 'athlete':
             raise ValidationError(message={"ID": "Athlete cannot remove exercise"})
-        ExercisesService.validate(training_id, claims)
-        db.session.query(Exercise).filter_by(id=exercise_id, trainings_id=training_id).delete(synchronize_session='fetch')
-        db.session. commit()
+        training = ExercisesService.validate(training_id, claims)
+        if training is None:
+            return None
+
+        exercise = db.session.query(Exercise).filter_by(id=exercise_id, trainings_id=training_id).first()
+        if exercise is None:
+            return None
+        exercise = db.session.query(Exercise).filter_by(id=exercise_id, trainings_id=training_id).delete(synchronize_session='fetch')
+        db.session.commit()
         Logger.log_message(claims['userID'], "exercises", "id", exercise_id, "null")
-        return exercise_id
+        return exercise
 
     @staticmethod
     def validate(training_id, claims):
         training = Training.query.get(training_id)
+        if training is None:
+            return None
         if claims['role'] == 'coach' and training.coaches_id != claims['userID']:
             raise ValidationError(message={"ID": "User doesn't have access to the training provided"})
         elif claims['role'] == 'athlete' and training.athletes_id != claims['userID']:

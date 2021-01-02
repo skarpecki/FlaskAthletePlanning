@@ -24,16 +24,17 @@ class Users(Resource):
             return make_response(jsonify({"error": "non authorized access"}), 401)
         # if no args were passed return all users from database
         if not request.args:
-            user = UserService.get_all(claims["userID"])
+            users = UserService.get_all(claims["userID"])
         else:
             try:
                 result = UserSchema().load(dict(request.args.items()))
-                user = UserService.get_by_args(**result)
+                users = UserService.get_by_args(**result)
             except ValidationError as err:
                 return make_response(err.messages, 400)
             except KeyError as err:
                 return make_response(jsonify({"error": "wrong data provided"}), 400)
-        return make_response(jsonify(AthleteCoachSchema().dump(user, many=True)), 200)
+        status = 201 if len(users) == 0 else 200
+        return make_response(jsonify(AthleteCoachSchema().dump(users, many=True)), status)
 
 
     def post(self) -> User:
