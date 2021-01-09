@@ -62,8 +62,8 @@ class TrainingService():
         trainings = Training.query.filter_by(athletes_id=attrs['athletes_id']).all()
         # can add training only if athlete coached by logged in coach and if it is first training of particular athlete
         # second is required as it won't be possible to add first training otherwise, as vUserCoach is based on trainings table
-        if attrs['athletes_id'] not in athletes_ids and len(trainings) != 0:
-            raise ValidationError(message={"athleteID": "Provided athlete is not coached by logged in coach"})
+        # if attrs['athletes_id'] not in athletes_ids and len(trainings) != 0:
+        #    raise ValidationError(message={"athleteID": "Provided athlete is not coached by logged in coach"})
 
         training = Training(
             date=attrs['date'],

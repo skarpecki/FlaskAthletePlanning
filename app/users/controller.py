@@ -33,7 +33,7 @@ class Users(Resource):
                 return make_response(err.messages, 400)
             except KeyError as err:
                 return make_response(jsonify({"error": "wrong data provided"}), 400)
-        status = 201 if len(users) == 0 else 200
+        status = 404 if len(users) == 0 else 200
         return make_response(jsonify(AthleteCoachSchema().dump(users, many=True)), status)
 
 
@@ -83,10 +83,6 @@ class Login(Resource):
                 return make_response(jsonify({"message": "wrong password"}), 400)
         except ValidationError as err:
             return make_response(err.messages, 400)
-        except KeyError as err:
-            print(err)
-            return make_response(jsonify({"error": "wrong json key"}), 400)
         # index error may be raised by UserSchema().dump(user[0]) if no user is returned by query
-        except IndexError as err:
-            print(err)
+        except (IndexError, KeyError):
             return make_response(jsonify({"message": "wrong e-mail or password"}), 400)

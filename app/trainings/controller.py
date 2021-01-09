@@ -65,7 +65,7 @@ class TrainingsSearch(Resource):
             except ValidationError as err:
                 return make_response(jsonify(err.messages), 400)
             except KeyError as err:
-                return make_response(jsonify({"error": "wrong data provided"}),400)
+                return make_response(jsonify({"error": "wrong data provided"}), 400)
         if len(trainings) != 0:
             return make_response(jsonify(TrainingSchema().dump(trainings, many=True)), 200)
         else:
